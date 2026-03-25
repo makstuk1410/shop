@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+*.pyc
+bakery.db
+.vscode/
+.env
+.env.local
+instance/
+.pytest_cache/
+*.egg-info/
+dist/
+build/

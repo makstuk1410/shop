@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zarządzanie Cukiernią</title>
+    <style>
+        :root {
+            --bg: #f4f6fb;
+            --card: #ffffff;
+            --accent: #3b82f6;
+            --accent-2: #10b981;
+            --text: #1f2937;
+            --muted: #6b7280;
+            --danger: #ef4444;
+            --border: #e5e7eb;
+            --shadow: 0 10px 30px rgba(0,0,0,0.08);
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #eef2ff 0%, #e0f2fe 100%);
+            color: var(--text);
+        }
+        .page { max-width: 1200px; margin: 0 auto; padding: 24px; }
+        header { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 24px; box-shadow: var(--shadow); margin-bottom: 24px; }
+        h1 { margin: 0 0 8px; font-size: 28px; }
+        p { margin: 0; color: var(--muted); }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; margin-bottom: 20px; }
+        .card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 18px; box-shadow: var(--shadow); }
+        .card h2 { margin: 0 0 12px; font-size: 18px; }
+        .muted { color: var(--muted); font-size: 14px; }
+        button, input, select { font-family: inherit; }
+        button { background: var(--accent); color: #fff; border: none; padding: 10px 14px; border-radius: 10px; cursor: pointer; font-weight: 600; transition: transform 0.05s ease, box-shadow 0.1s ease; }
+        button:hover { transform: translateY(-1px); box-shadow: 0 10px 20px rgba(59,130,246,0.2); }
+        button:active { transform: translateY(0); box-shadow: none; }
+        .btn-ghost { background: #fff; color: var(--text); border: 1px solid var(--border); }
+        .btn-danger { background: var(--danger); }
+        .btn-success { background: var(--accent-2); }
+        .input, select { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; background: #fff; font-size: 14px; }
+        .product-row, .customer-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; margin-bottom: 10px; background: #fff; }
+        .badge { padding: 4px 10px; border-radius: 999px; background: #eef2ff; color: #4338ca; font-weight: 700; font-size: 12px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 10px; text-align: left; border-bottom: 1px solid var(--border); }
+        thead { background: #f8fafc; }
+        .flex { display: flex; gap: 10px; align-items: center; }
+        .stack { display: flex; flex-direction: column; gap: 10px; }
+        .section-title { margin: 0 0 8px; }
+        .pill { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 999px; border: 1px solid var(--border); background: #fff; font-size: 12px; }
+        .status-pending { background: #fff7ed; color: #ea580c; border-color: #fed7aa; }
+        .status-done { background: #ecfdf3; color: #16a34a; border-color: #bbf7d0; }
+        .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.45); display: none; align-items: center; justify-content: center; padding: 16px; z-index: 1000; }
+        .modal { background: #fff; border-radius: 14px; padding: 20px; width: min(520px, 100%); box-shadow: 0 20px 50px rgba(0,0,0,0.15); max-height: 90vh; overflow-y: auto; }
+        .modal h3 { margin: 0 0 12px; }
+        .close { float: right; cursor: pointer; color: var(--muted); font-size: 20px; }
+        .order-row { display: grid; grid-template-columns: 1fr 90px 70px; gap: 8px; align-items: center; }
+        .search-results div { padding: 8px 10px; border: 1px solid var(--border); border-radius: 10px; margin-bottom: 8px; cursor: pointer; }
+        .search-results div:hover { border-color: var(--accent); }
+        .empty { color: var(--muted); font-size: 14px; }
+    </style>
+</head>
+<body>
+<div class="page">
+    <header>
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div>
+                <h1>🍰 Chlebowy</h1>
+            </div>
+            <div class="flex" style="gap:8px;">
+                <button id="btn23" onclick="switchDate('23.12')" style="padding:12px 20px;">23.12</button>
+                <button id="btn24" onclick="switchDate('24.12')" style="padding:12px 20px;" class="btn-ghost">24.12</button>
+            </div>
+        </div>
+    </header>
+
+    <div class="grid">
+        <div class="card">
+            <h2>📊 Produkty (suma nieodebranych)</h2>
+            <div id="productsList" class="stack"></div>
+        </div>
+
+        <div class="card">
+            <h2>🔍 Szukaj klienta</h2>
+            <div class="flex" style="gap:8px;">
+                <input id="searchInput" class="input" placeholder="Imię lub telefon" />
+                <button onclick="searchCustomers()">Szukaj</button>
+            </div>
+            <div id="searchResults" class="search-results" style="margin-top:12px;"></div>
+        </div>
+    </div>
+
+    <div class="card" style="margin-bottom:16px;">
+        <div class="flex" style="justify-content: space-between; align-items: center;">
+            <h2>👥 Klienci</h2>
+            <button onclick="openAddCustomerModal()">➕ Dodaj nowego klienta</button>
+        </div>
+        <div class="grid" style="margin-top:10px;">
+            <div>
+                <h3 class="section-title">Do odebrania</h3>
+                <div id="pendingCustomers" class="stack"></div>
+            </div>
+            <div>
+                <h3 class="section-title">Odebrane</h3>
+                <div id="deliveredCustomers" class="stack"></div>
+            </div>
+        </div>
+        <div style="margin-top:14px;">
+            <table>
+                <thead>
+                    <tr><th>Imię</th><th>Telefon</th><th>Akcje</th></tr>
+                </thead>
+                <tbody id="customersTableBody"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Dodaj klienta -->
+<div id="addCustomerModal" class="modal-backdrop">
+    <div class="modal">
+        <span class="close" onclick="closeAddCustomerModal()">✕</span>
+        <h3>Dodaj klienta</h3>
+        <div id="addCustomerAlert"></div>
+        <form onsubmit="submitAddCustomer(event)">
+            <div class="stack">
+                <div>
+                    <label>Imię</label>
+                    <input id="customerName" class="input" required />
+                </div>
+                <div>
+                    <label>Telefon</label>
+                    <input id="customerPhone" class="input" required />
+                </div>
+                <div class="flex" style="justify-content:flex-end;">
+                    <button type="button" class="btn-ghost" onclick="closeAddCustomerModal()">Anuluj</button>
+                    <button type="submit">Dodaj</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal Szczegóły klienta -->
+<div id="customerModal" class="modal-backdrop">
+    <div class="modal">
+        <span class="close" onclick="closeCustomerModal()">✕</span>
+        <h3 id="customerModalTitle">Szczegóły klienta</h3>
+        <div id="customerDetails" class="stack"></div>
+        <hr style="margin:16px 0;">
+        <h4>Dodaj produkty (wiele na raz)</h4>
+        <div id="orderRows" class="stack"></div>
+        <div class="flex" style="justify-content: flex-start; gap:8px; margin-top:4px;">
+            <button type="button" onclick="addOrderRow()">➕ Dodaj wiersz</button>
+            <button type="button" class="btn-success" onclick="addOrdersToCustomer()">📤 Zapisz wszystkie</button>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentCustomerId = null;
+let productsCache = [];
+let currentDeliveryDate = '23.12';
+
+window.addEventListener('load', () => {
+    loadProducts();
+    loadCustomers();
+    loadCustomerStatus();
+    updateDateButtons();
+});
+
+function switchDate(date) {
+    currentDeliveryDate = date;
+    updateDateButtons();
+    loadProducts();
+    loadCustomers();
+    loadCustomerStatus();
+}
+
+function updateDateButtons() {
+    const btn23 = document.getElementById('btn23');
+    const btn24 = document.getElementById('btn24');
+    if (currentDeliveryDate === '23.12') {
+        btn23.className = '';
+        btn24.className = 'btn-ghost';
+    } else {
+        btn23.className = 'btn-ghost';
+        btn24.className = '';
+    }
+}
+
+function api(url, options={}) {
+    // Dodaj delivery_date do parametrów URL dla GET requestów
+    if (!options.method || options.method === 'GET') {
+        const separator = url.includes('?') ? '&' : '?';
+        url = `${url}${separator}delivery_date=${encodeURIComponent(currentDeliveryDate)}`;
+    }
+    return fetch(url, options).then(r => r.json());
+}
+
+function loadProducts() {
+    api('/products').then(data => {
+        productsCache = data;
+        renderProducts(data);
+        populateProductSelects();
+    });
+}
+
+function renderProducts(products) {
+    const box = document.getElementById('productsList');
+    box.innerHTML = '';
+    if (!products.length) {
+        box.innerHTML = '<div class="empty">Brak produktów</div>';
+        return;
+    }
+    products.forEach(p => {
+        const row = document.createElement('div');
+        row.className = 'product-row';
+        const qty = p.total_quantity !== undefined ? p.total_quantity : 0;
+        row.innerHTML = `<span>${p.name}</span><span class="badge">${qty} szt.</span>`;
+        box.appendChild(row);
+    });
+}
+
+function loadCustomers() {
+    api('/customers').then(data => {
+        const tbody = document.getElementById('customersTableBody');
+        tbody.innerHTML = '';
+        if (!data.length) {
+            tbody.innerHTML = '<tr><td colspan="3" class="empty">Brak klientów</td></tr>';
+            return;
+        }
+        data.forEach(c => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${c.name}</td>
+                <td>${c.phone}</td>
+                <td>
+                    <div class="flex" style="gap:6px;">
+                        <button class="btn-success" onclick="openCustomerModal(${c.id})">Szczegóły</button>
+                        <button class="btn-danger" onclick="deleteCustomer(${c.id})">Usuń</button>
+                    </div>
+                </td>`;
+            tbody.appendChild(tr);
+        });
+    });
+}
+
+function loadCustomerStatus() {
+    api('/customers/status').then(data => {
+        const pDiv = document.getElementById('pendingCustomers');
+        const dDiv = document.getElementById('deliveredCustomers');
+        pDiv.innerHTML = '';
+        dDiv.innerHTML = '';
+        if (!data.pending.length) pDiv.innerHTML = '<div class="empty">Brak oczekujących</div>';
+        if (!data.delivered.length) dDiv.innerHTML = '<div class="empty">Brak odebranych</div>';
+        data.pending.forEach(c => {
+            const el = document.createElement('div');
+            el.className = 'customer-row';
+            el.innerHTML = `<div><strong>${c.name}</strong><div class="muted">${c.phone}</div></div><span class="pill status-pending">${c.pending_quantity} szt.</span>`;
+            el.onclick = () => openCustomerModal(c.id);
+            pDiv.appendChild(el);
+        });
+        data.delivered.forEach(c => {
+            const el = document.createElement('div');
+            el.className = 'customer-row';
+            el.innerHTML = `<div><strong>${c.name}</strong><div class="muted">${c.phone}</div></div><span class="pill status-done">0 szt.</span>`;
+            el.onclick = () => openCustomerModal(c.id);
+            dDiv.appendChild(el);
+        });
+    });
+}
+
+function searchCustomers() {
+    const q = document.getElementById('searchInput').value.trim();
+    if (!q) { document.getElementById('searchResults').innerHTML=''; return; }
+    api(`/search?q=${encodeURIComponent(q)}`).then(data => {
+        const box = document.getElementById('searchResults');
+        box.innerHTML = '';
+        if (!data.length) { box.innerHTML = '<div class="empty">Brak wyników</div>'; return; }
+        data.forEach(c => {
+            const div = document.createElement('div');
+            div.textContent = `${c.name} — ${c.phone}`;
+            div.onclick = () => openCustomerModal(c.id);
+            box.appendChild(div);
+        });
+    });
+}
+
+function openAddCustomerModal() {
+    document.getElementById('addCustomerModal').style.display = 'flex';
+    document.getElementById('customerName').value = '';
+    document.getElementById('customerPhone').value = '';
+    document.getElementById('addCustomerAlert').innerHTML = '';
+}
+function closeAddCustomerModal() { document.getElementById('addCustomerModal').style.display = 'none'; }
+function submitAddCustomer(e) {
+    e.preventDefault();
+    const name = document.getElementById('customerName').value.trim();
+    const phone = document.getElementById('customerPhone').value.trim();
+    const alertDiv = document.getElementById('addCustomerAlert');
+    api('/customer/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, phone, delivery_date: currentDeliveryDate })
+    }).then(data => {
+        if (data.error) {
+            alertDiv.innerHTML = `<div style="color:#b91c1c; padding:6px 8px;">${data.error}</div>`;
+        } else {
+            alertDiv.innerHTML = `<div style="color:#166534; padding:6px 8px;">Dodano klienta.</div>`;
+            setTimeout(() => {
+                closeAddCustomerModal();
+                loadCustomers();
+                loadCustomerStatus();
+            }, 600);
+        }
+    }).catch(() => {
+        alertDiv.innerHTML = `<div style="color:#b91c1c; padding:6px 8px;">Błąd połączenia</div>`;
+    });
+}
+
+function openCustomerModal(id) {
+    currentCustomerId = id;
+    api(`/customer/${id}`).then(data => {
+        const box = document.getElementById('customerDetails');
+        box.innerHTML = '';
+        const info = document.createElement('div');
+        info.innerHTML = `<strong>${data.name}</strong><div class="muted">${data.phone}</div>`;
+        box.appendChild(info);
+        
+        // Notatki
+        const notesBox = document.createElement('div');
+        notesBox.style.cssText = 'margin-top:12px; padding:10px; background:#f0f9ff; border:1px solid #bae6fd; border-radius:8px;';
+        notesBox.innerHTML = `
+            <div style="font-weight:600; margin-bottom:6px;">Notatki:</div>
+            <textarea id="customerNotes" style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:6px; font-size:14px; font-family:inherit; min-height:60px;">${data.notes || ''}</textarea>
+            <button class="btn" style="margin-top:6px;" onclick="saveNotes()">Zapisz notatki</button>
+        `;
+        box.appendChild(notesBox);
+        
+        // Wyświetl sumę wartości nieodebranych zamówień
+        if (data.total_price > 0) {
+            const priceInfo = document.createElement('div');
+            priceInfo.style.cssText = 'margin-top:8px; padding:10px; background:#fef3c7; border:1px solid #fbbf24; border-radius:10px; font-weight:600;';
+            priceInfo.innerHTML = `Suma do zapłaty: <strong>${data.total_price.toFixed(2)} zł</strong>`;
+            box.appendChild(priceInfo);
+        }
+        
+        const ordersBox = document.createElement('div');
+        ordersBox.className = 'stack';
+        ordersBox.style.marginTop = '12px';
+        if (!data.orders.length) {
+            ordersBox.innerHTML = '<div class="empty">Brak zamówień</div>';
+        } else {
+            data.orders.forEach(o => {
+                const row = document.createElement('div');
+                row.className = 'product-row';
+                const deliveredClass = o.delivered ? 'status-done' : 'status-pending';
+                const itemTotal = (o.price * o.quantity).toFixed(2);
+                row.innerHTML = `<div>${o.name} — <strong>${o.quantity}</strong> szt. × ${o.price} zł = <strong>${itemTotal} zł</strong></div>
+                    <div class="flex" style="gap:6px;">
+                        <span class="pill ${deliveredClass}">${o.delivered ? 'Odebrane' : 'Do odbioru'}</span>
+                        <button class="btn-success" ${o.delivered ? 'disabled' : ''} onclick="markDelivered(${o.id})">Oznacz jako odebrane</button>
+                        <button class="btn-danger" onclick="deleteOrder(${o.id})">Usuń</button>
+                    </div>`;
+                ordersBox.appendChild(row);
+            });
+        }
+        box.appendChild(ordersBox);
+        document.getElementById('customerModalTitle').textContent = `Szczegóły: ${data.name}`;
+        document.getElementById('customerModal').style.display = 'flex';
+        const rows = document.getElementById('orderRows');
+        rows.innerHTML = '';
+        addOrderRow();
+    });
+}
+function closeCustomerModal() { document.getElementById('customerModal').style.display = 'none'; currentCustomerId = null; }
+
+function populateProductSelects() {
+    const selects = document.querySelectorAll('.product-select');
+    selects.forEach(sel => {
+        sel.innerHTML = '';
+        productsCache.forEach(p => {
+            const opt = document.createElement('option');
+            opt.value = p.id;
+            opt.textContent = p.name;
+            sel.appendChild(opt);
+        });
+    });
+}
+
+function addOrderRow(productId=null, qty=1) {
+    const container = document.getElementById('orderRows');
+    const row = document.createElement('div');
+    row.className = 'order-row';
+    const sel = document.createElement('select');
+    sel.className = 'product-select input';
+    productsCache.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p.id;
+        opt.textContent = p.name;
+        sel.appendChild(opt);
+    });
+    if (productId) sel.value = productId;
+    const qtyInput = document.createElement('input');
+    qtyInput.type = 'number'; qtyInput.min = '1'; qtyInput.value = qty; qtyInput.className = 'input';
+    const removeBtn = document.createElement('button');
+    removeBtn.type = 'button'; removeBtn.className = 'btn-ghost';
+    removeBtn.textContent = 'Usuń';
+    removeBtn.onclick = () => row.remove();
+    row.appendChild(sel); row.appendChild(qtyInput); row.appendChild(removeBtn);
+    container.appendChild(row);
+}
+
+function addOrdersToCustomer() {
+    if (!currentCustomerId) return;
+    const rows = [...document.querySelectorAll('#orderRows .order-row')];
+    const items = rows.map(r => {
+        const sel = r.querySelector('select');
+        const qty = r.querySelector('input');
+        return { product_id: parseInt(sel.value), quantity: parseInt(qty.value) };
+    }).filter(it => it.product_id && it.quantity > 0);
+    if (!items.length) { alert('Dodaj przynajmniej jedną pozycję'); return; }
+    api(`/customer/${currentCustomerId}/add-orders`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items })
+    }).then(data => {
+        if (data.error) { alert(data.error); return; }
+        openCustomerModal(currentCustomerId);
+        loadCustomers();
+        loadCustomerStatus();
+        loadProducts();
+    }).catch(() => alert('Błąd połączenia'));
+}
+
+function saveNotes() {
+    if (!currentCustomerId) return;
+    const notes = document.getElementById('customerNotes').value;
+    api(`/customer/${currentCustomerId}/update`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notes })
+    }).then(data => {
+        if (data.success) {
+            alert('Notatki zapisane');
+        }
+    });
+}
+
+function markDelivered(id) {
+    api(`/order/${id}/mark-delivered`, { method: 'PUT' }).then(() => {
+        if (currentCustomerId) openCustomerModal(currentCustomerId);
+        loadProducts();
+        loadCustomerStatus();
+    });
+}
+
+function deleteOrder(id) {
+    if (!confirm('Usunąć zamówienie?')) return;
+    api(`/order/${id}/delete`, { method: 'DELETE' }).then(() => {
+        if (currentCustomerId) openCustomerModal(currentCustomerId);
+        loadProducts();
+        loadCustomerStatus();
+    });
+}
+
+function deleteCustomer(id) {
+    if (!confirm('Usunąć klienta i jego zamówienia?')) return;
+    api(`/customer/${id}/delete`, { method: 'DELETE' }).then(() => {
+        loadCustomers();
+        loadCustomerStatus();
+        loadProducts();
+    });
+}
+
+window.onclick = function(e) {
+    const addM = document.getElementById('addCustomerModal');
+    const custM = document.getElementById('customerModal');
+    if (e.target === addM) closeAddCustomerModal();
+    if (e.target === custM) closeCustomerModal();
+};
+</script>
+</body>
+</html>
